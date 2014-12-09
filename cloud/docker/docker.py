@@ -653,7 +653,7 @@ class DockerManager:
                 self.module.fail_json(msg="failed to pull the specified image: %s, error: %s" % (resource, e))
 
         resource = self.module.params.get('image')
-        image, tag = self.get_split_image_tag(resource)
+        image, tag = get_split_image_tag(resource)
         if self.module.params.get('pull_latest'):
             do_pull(image, tag)
 
