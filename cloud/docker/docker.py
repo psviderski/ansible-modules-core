@@ -210,12 +210,14 @@ options:
     required: false
     default: false
     aliases: []
+    version_added: "1.8"
   insecure_registry:
     description:
       - Allow pulling from plain HTTP registries
     required: false
     default: false
     aliases: []
+    version_added: "1.8"
 
 author: Cove Schneider, Joshua Conner, Pavel Antonov
 requirements: [ "docker-py >= 0.3.0", "docker >= 0.10.0" ]
