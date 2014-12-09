@@ -24,6 +24,7 @@ DOCUMENTATION = '''
 module: unarchive
 version_added: 1.4
 short_description: Copies an archive to a remote location and unpack it
+extends_documentation_fragment: files
 description:
      - The M(unarchive) module copies an archive file from the local machine to a remote and unpacks it.
 options:
@@ -192,7 +193,6 @@ def main():
     src    = os.path.expanduser(module.params['src'])
     dest   = os.path.expanduser(module.params['dest'])
     copy   = module.params['copy']
-    creates = module.params['creates']
 
     # did tar file arrive?
     if not os.path.exists(src):
@@ -202,20 +202,6 @@ def main():
             module.fail_json(msg="Source '%s' does not exist" % src)
     if not os.access(src, os.R_OK):
         module.fail_json(msg="Source '%s' not readable" % src)
-
-    if creates:
-        # do not run the command if the line contains creates=filename
-        # and the filename already exists.  This allows idempotence
-        # of command executions.
-        v = os.path.expanduser(creates)
-        if os.path.exists(v):
-            module.exit_json(
-                stdout="skipped, since %s exists" % v,
-                skipped=True,
-                changed=False,
-                stderr=False,
-                rc=0
-            )
 
     # is dest OK to receive tar file?
     if not os.path.isdir(dest):
