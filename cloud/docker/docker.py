@@ -218,6 +218,20 @@ options:
     default: false
     aliases: []
     version_added: "1.8"
+  pull_latest:
+    description:
+      - Pull the latest image before running a container
+    required: false
+    default: false
+    aliases: []
+    version_added: "1.8"
+  insecure_registry:
+    description:
+      - Allow pulling from plain HTTP registries
+    required: false
+    default: false
+    aliases: []
+    version_added: "1.8"
 
 author: Cove Schneider, Joshua Conner, Pavel Antonov
 requirements: [ "docker-py >= 0.3.0", "docker >= 0.10.0" ]
@@ -635,27 +649,34 @@ class DockerManager:
 
             return results
 
-        try:
-            containers = do_create(count, params)
-        except:
-            resource = self.module.params.get('image')
-            image, tag = get_split_image_tag(resource)
+        def do_pull(resource, tag):
             if self.module.params.get('username'):
                 try:
                     self.client.login(
                         self.module.params.get('username'),
                         password=self.module.params.get('password'),
                         email=self.module.params.get('email'),
-                        registry=self.module.params.get('registry')
+                        registry=self.module.params.get('registry'),
                     )
                 except:
                     self.module.fail_json(msg="failed to login to the remote registry, check your username/password.")
             try:
-                self.client.pull(image, tag=tag)
-            except:
-                self.module.fail_json(msg="failed to pull the specified image: %s" % resource)
-            self.increment_counter('pull')
+                self.client.pull(resource, tag=tag, insecure_registry=self.module.params.get('insecure_registry'))
+                self.increment_counter('pull')
+            except Exception as e:
+                self.module.fail_json(msg="failed to pull the specified image: %s, error: %s" % (resource, e))
+
+        resource = self.module.params.get('image')
+        image, tag = self.get_split_image_tag(resource)
+        if self.module.params.get('pull_latest'):
+            do_pull(image, tag)
+
+        try:
             containers = do_create(count, params)
+        except:
+            if not self.module.params.get('pull_latest'):
+                do_pull(image, tag)
+                containers = do_create(count, params)
 
         return containers
 
@@ -764,7 +785,9 @@ def main():
             tty             = dict(default=False, type='bool'),
             lxc_conf        = dict(default=None, type='list'),
             name            = dict(default=None),
-            net             = dict(default=None)
+            net             = dict(default=None),
+            pull_latest     = dict(default=False, type='bool'),
+            insecure_registry = dict(default=False, type='bool')
         )
     )
 
