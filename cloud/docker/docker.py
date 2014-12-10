@@ -608,6 +608,26 @@ class DockerManager:
 
         return running
 
+    def pull_image(self, resource, tag):
+        if self.module.params.get('username'):
+            try:
+                self.client.login(
+                    self.module.params.get('username'),
+                    password=self.module.params.get('password'),
+                    email=self.module.params.get('email'),
+                    registry=self.module.params.get('registry'),
+                )
+            except:
+                self.module.fail_json(msg="failed to login to the remote registry, check your username/password.")
+        extra_params = {}
+        if hasattr(docker, '__version__') and docker.__version__ >= '0.5.0':
+            extra_params['insecure_registry'] = self.module.params.get('insecure_registry')
+        try:
+            self.client.pull(resource, tag=tag, **extra_params)
+            self.increment_counter('pull')
+        except Exception as e:
+            self.module.fail_json(msg="failed to pull the specified image: %s, error: %s" % (resource, e))
+
     def create_containers(self, count=1):
         params = {'image':        self.module.params.get('image'),
                   'command':      self.module.params.get('command'),
@@ -635,36 +655,16 @@ class DockerManager:
 
             return results
 
-        def do_pull(resource, tag):
-            if self.module.params.get('username'):
-                try:
-                    self.client.login(
-                        self.module.params.get('username'),
-                        password=self.module.params.get('password'),
-                        email=self.module.params.get('email'),
-                        registry=self.module.params.get('registry'),
-                    )
-                except:
-                    self.module.fail_json(msg="failed to login to the remote registry, check your username/password.")
-            extra_params = {}
-            if hasattr(docker, '__version__') and docker.__version__ >= '0.5.0':
-                extra_params['insecure_registry'] = self.module.params.get('insecure_registry')
-            try:
-                self.client.pull(resource, tag=tag, **extra_params)
-                self.increment_counter('pull')
-            except Exception as e:
-                self.module.fail_json(msg="failed to pull the specified image: %s, error: %s" % (resource, e))
-
         resource = self.module.params.get('image')
         image, tag = get_split_image_tag(resource)
         if self.module.params.get('pull_latest'):
-            do_pull(image, tag)
+            self.pull_image(image, tag)
 
         try:
             containers = do_create(count, params)
         except:
             if not self.module.params.get('pull_latest'):
-                do_pull(image, tag)
+                self.pull_image(image, tag)
                 containers = do_create(count, params)
 
         return containers
