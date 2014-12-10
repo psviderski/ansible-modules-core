@@ -646,8 +646,11 @@ class DockerManager:
                     )
                 except:
                     self.module.fail_json(msg="failed to login to the remote registry, check your username/password.")
+            extra_params = {}
+            if hasattr(docker, '__version__') and docker.__version__ >= '0.5.0':
+                extra_params['insecure_registry'] = self.module.params.get('insecure_registry')
             try:
-                self.client.pull(resource, tag=tag, insecure_registry=self.module.params.get('insecure_registry'))
+                self.client.pull(resource, tag=tag, **extra_params)
                 self.increment_counter('pull')
             except Exception as e:
                 self.module.fail_json(msg="failed to pull the specified image: %s, error: %s" % (resource, e))
